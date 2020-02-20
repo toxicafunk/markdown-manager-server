@@ -17,25 +17,67 @@ class ConfluenceController @Inject() (
     val controllerComponents: ControllerComponents
 ) extends BaseController {
 
-    val baseurl = "https://confluence.eniro.com/rest/api"
-    val user = "user"
-    val pass = "password"
+  val baseurl = "https://confluence.eniro.com/rest/api"
+  val user = "user"
+  val pass = "password"
 
-  def spaces() = Action { implicit request: Request[AnyContent] =>
+  implicit val ec = ExecutionContext.global
+
+  val postBody = (title: String, body: String) => Json.obj(
+    "type"  -> "page",
+    "title" -> title,
+    "space" -> Json.obj{"key" -> "DOC"},
+    "body"  -> Json.obj(
+      "storage" -> Json.obj(
+        "value" -> body,
+        "representation" -> "storage"
+      )
+    )
+  )
+
+  def spaces() = Action.async { implicit request: Request[AnyContent] =>
     {
       val request: WSRequest = ws
-        .url(s"$baseurl/space") //.withUrl()
-          .withAuth(user, pass, WSAuthScheme.BASIC)
+        .url(s"$baseurl/content/36247644") //.withUrl()
+        .withAuth(user, pass, WSAuthScheme.BASIC)
         .addHttpHeaders(
           "Content-Type" -> "application/json"
         )
-        .addQueryStringParameters("type" -> "global")
+        .addQueryStringParameters(
+          "type" -> "page",
+          "spaceKey" -> "DOC",
+          "expand" -> "body.storage"
+        )
       val futureResponse: Future[WSResponse] = request.get()
       println(futureResponse)
-      val response: WSResponse = Await.result(futureResponse, 30.seconds)
-      val json = response.json
-      println(json)
-      Ok(json)
+      //val response: WSResponse = Await.result(futureResponse, 30.seconds)
+      futureResponse.map(r => {
+        val json = r.json
+        println(json)
+        Ok(json)
+      })
+    }
+  }
+
+  def create(title: String) = Action.async { implicit request: Request[AnyContent] =>
+    {
+      val requestConfluence: WSRequest = ws
+        .url(s"$baseurl/content")
+        .withAuth(user, pass, WSAuthScheme.BASIC)
+        .addHttpHeaders(
+          "Content-Type" -> "application/json"
+        )
+
+      val body = request.body.asText.getOrElse("No content was provided")
+      val data = postBody(title, body)
+
+      val futureResponse: Future[WSResponse] = requestConfluence.post(data)
+      println(futureResponse)
+      futureResponse.map(r => {
+        val json = r.json
+        println(json)
+        Ok(json)
+      })
     }
   }
 }
