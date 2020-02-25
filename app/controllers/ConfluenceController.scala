@@ -38,7 +38,7 @@ class ConfluenceController @Inject() (
   def spaces() = Action.async { implicit request: Request[AnyContent] =>
     {
       val request: WSRequest = ws
-        .url(s"$baseurl/content/36247644") //.withUrl()
+        .url(s"$baseurl/content/46174529") //.withUrl()
         .withAuth(user, pass, WSAuthScheme.BASIC)
         .addHttpHeaders(
           "Content-Type" -> "application/json"
@@ -59,7 +59,7 @@ class ConfluenceController @Inject() (
     }
   }
 
-  def create(title: String) = Action.async { implicit request: Request[AnyContent] =>
+  def create() = Action.async { implicit request: Request[AnyContent] =>
     {
       val requestConfluence: WSRequest = ws
         .url(s"$baseurl/content")
@@ -68,7 +68,10 @@ class ConfluenceController @Inject() (
           "Content-Type" -> "application/json"
         )
 
-      val body = request.body.asText.getOrElse("No content was provided")
+      val json = request.body.asJson.getOrElse(JsObject.empty)
+      println(Json.stringify(json))
+      val title = (json \ "mdname").as[String]
+      val body = (json \ "typed").as[String]
       val data = postBody(title, body)
 
       val futureResponse: Future[WSResponse] = requestConfluence.post(data)
